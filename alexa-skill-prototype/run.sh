@@ -85,13 +85,6 @@ else
   echo "Listening on: 0.0.0.0:$PORT"
   echo "Flask will print more details below:"
   echo "---"
-  # Run with unbuffered output, explicit error handling, and timeout
-  # Use stdbuf to ensure line buffering and timeout to catch hangs
-  exec timeout 60 python3 -u app/app.py 2>&1 || {
-    EXIT_CODE=$?
-    if [ $EXIT_CODE -eq 124 ]; then
-      echo "ERROR: Flask startup timed out after 60 seconds"
-    fi
-    exit $EXIT_CODE
-  }
+  # Run with unbuffered output using the custom starter script
+  exec python3 -u /opt/music-assistant/bin/start_app.py 2>&1
 fi
