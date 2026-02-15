@@ -4,6 +4,8 @@ Custom Flask starter script that ensures proper startup.
 Uses Waitress WSGI server for better container compatibility.
 Bypasses app-level Basic Auth for Home Assistant ingress requests.
 Rewrites absolute URL paths in HTML so they work behind HA ingress.
+Overrides HTTP_HOST for ingress requests so internal self-checks
+(status page) use localhost instead of the public domain (hairpin NAT fix).
 """
 import os
 import sys
@@ -76,27 +78,42 @@ try:
     print(">>> Installed ingress-aware auth handler (172.30.32.2 bypasses Basic Auth)", flush=True)
 
     # ---------------------------------------------------------------
-    # INGRESS PATH REWRITING MIDDLEWARE
+    # INGRESS PATH REWRITING + HAIRPIN NAT FIX MIDDLEWARE
     # ---------------------------------------------------------------
     # HA ingress serves the add-on under /api/hassio_ingress/<token>/
     # The upstream templates use absolute paths like /setup/start which
     # would be sent to the HA root and 404.  This middleware detects
     # the X-Ingress-Path header that HA sends and rewrites absolute
     # URL references in HTML responses so they work correctly.
+    #
+    # HAIRPIN NAT FIX: The upstream status page uses request.host_url
+    # to build self-check URLs (e.g. /ma/latest-url, /alexa/latest-url).
+    # When accessed through HA ingress, request.host_url resolves to
+    # the public domain (e.g. home.garrettorick.com), but the container
+    # can't reach itself via that domain (hairpin NAT). We override
+    # HTTP_HOST to localhost:<port> for ingress requests so the self-
+    # checks work correctly.
     # ---------------------------------------------------------------
 
     class IngressPathRewriteMiddleware:
-        """WSGI middleware that rewrites absolute URL paths in HTML responses
-        to be prefixed with the HA ingress base path."""
+        """WSGI middleware that:
+        1. Overrides HTTP_HOST for ingress requests (hairpin NAT fix)
+        2. Rewrites absolute URL paths in HTML responses for HA ingress"""
 
-        # Paths used by the upstream app that need rewriting
+        # Paths used by the upstream app that need rewriting in HTML
         PATHS_TO_REWRITE = [
             '/setup/start',
             '/setup/stop',
             '/setup/code',
             '/setup/logs/download',
             '/setup',
+            '/status/api',
+            '/status/ask',
+            '/status/ma',
+            '/status/alexa',
+            '/status/invocations',
             '/status',
+            '/invocations',
         ]
 
         def __init__(self, wsgi_app):
@@ -108,6 +125,17 @@ try:
             if not ingress_path:
                 # Not coming through ingress - pass through unchanged
                 return self.wsgi_app(environ, start_response)
+
+            # --- HAIRPIN NAT FIX ---
+            # Override HTTP_HOST so that request.host_url inside Flask
+            # resolves to localhost:<port> instead of the public domain.
+            # This makes the status page's self-HTTP-checks (requests.get)
+            # hit localhost, which is always reachable from inside the container.
+            port = os.environ.get('PORT', '5000')
+            environ['HTTP_HOST'] = f'localhost:{port}'
+            # Also update SERVER_NAME if present
+            environ['SERVER_NAME'] = 'localhost'
+            environ['SERVER_PORT'] = port
 
             # Strip trailing slash from ingress path
             ingress_path = ingress_path.rstrip('/')
@@ -129,7 +157,6 @@ try:
 
                 if 'text/html' in content_type:
                     # We need to buffer this response to rewrite paths
-                    # Return a dummy write function (buffering mode)
                     def dummy_write(data):
                         pass
                     write_func[0] = dummy_write
@@ -175,9 +202,7 @@ try:
             # Sort paths longest first so /setup/start matches before /setup
             sorted_paths = sorted(self.PATHS_TO_REWRITE, key=len, reverse=True)
             for path in sorted_paths:
-                # Replace in fetch() calls: fetch('/setup/start' -> fetch('/ingress_path/setup/start'
-                # Replace in window.location assignments: = '/status' -> = '/ingress_path/status'
-                # Replace in href attributes: href="/status" -> href="/ingress_path/status"
+                # Replace in fetch(), window.location, href, etc.
                 # But only if not already prefixed
                 html = html.replace(f"'{path}", f"'{ingress_path}{path}")
                 html = html.replace(f'"{path}', f'"{ingress_path}{path}')
@@ -197,7 +222,7 @@ try:
 
     # Wrap the Flask WSGI app with our ingress path rewriting middleware
     app.wsgi_app = IngressPathRewriteMiddleware(app.wsgi_app)
-    print(">>> Installed IngressPathRewriteMiddleware for HA ingress URL rewriting", flush=True)
+    print(">>> Installed IngressPathRewriteMiddleware (with hairpin NAT fix) for HA ingress", flush=True)
 
     # Add request/response logging
     @app.after_request
