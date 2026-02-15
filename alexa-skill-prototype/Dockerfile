@@ -1,28 +1,12 @@
-FROM python:3.12-slim
+FROM ghcr.io/alams154/music-assistant-skill:latest
 
-WORKDIR /app
-
-# Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    git \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
-
-# Clone the Alexa skill prototype repository
-RUN git clone https://github.com/alams154/music-assistant-alexa-skill-prototype.git .
-
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Create secrets directory
+# Create secrets directory for Home Assistant
 RUN mkdir -p /run/secrets
 
 # Copy run script
 COPY run.sh /
 RUN chmod +x /run.sh
 
-# Expose ports
-EXPOSE 5000 5678
-
-# Run the application
+# Override entrypoint with our HA-specific run script
+ENTRYPOINT []
 CMD ["/run.sh"]
