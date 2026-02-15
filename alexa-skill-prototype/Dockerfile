@@ -25,8 +25,9 @@ RUN git clone https://github.com/alams154/music-assistant-alexa-skill-prototype.
     cp -r /tmp/skill/scripts /opt/music-assistant/ && \
     rm -rf /tmp/skill
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r /opt/music-assistant/app/requirements.txt
+# Install Python dependencies and Waitress WSGI server
+RUN pip install --no-cache-dir -r /opt/music-assistant/app/requirements.txt && \
+    pip install --no-cache-dir waitress
 
 # Create symlinks to ensure python command works
 RUN ln -sf /usr/bin/python3 /usr/bin/python

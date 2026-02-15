@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
 Custom Flask starter script that ensures proper startup.
+Uses Waitress WSGI server for better container compatibility.
 """
 import os
 import sys
@@ -15,19 +16,31 @@ sys.path.insert(0, '/opt/music-assistant')
 # Set up environment
 os.environ.setdefault('PYTHONUNBUFFERED', '1')
 
-# Import and start the app
+# Import the app
 from app import app
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    print(f">>> Starting Flask app on 0.0.0.0:{port}")
+    host = '0.0.0.0'
+    
+    print(f">>> Starting Flask app with Waitress WSGI server")
+    print(f">>> Listening on {host}:{port}")
     sys.stdout.flush()
     
-    # Use threaded mode to prevent hanging
-    app.run(
-        host='0.0.0.0',
-        port=port,
-        debug=False,
-        threaded=True,
-        use_reloader=False
-    )
+    try:
+        # Try to import and use Waitress (better for containers)
+        from waitress import serve
+        print(">>> Using Waitress WSGI server")
+        sys.stdout.flush()
+        serve(app, host=host, port=port, threads=4)
+    except ImportError:
+        print(">>> Waitress not available, falling back to Flask development server")
+        sys.stdout.flush()
+        # Fallback to Flask if Waitress isn't installed
+        app.run(
+            host=host,
+            port=port,
+            debug=False,
+            threaded=True,
+            use_reloader=False
+        )
