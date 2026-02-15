@@ -5,7 +5,11 @@ Custom Flask starter script that ensures proper startup.
 import os
 import sys
 
-# Add app directory to path
+# Change to the app directory first
+os.chdir('/opt/music-assistant/app')
+
+# Add both directories to path so imports work
+sys.path.insert(0, '/opt/music-assistant/app')
 sys.path.insert(0, '/opt/music-assistant')
 
 # Set up environment
