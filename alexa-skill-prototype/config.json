@@ -34,8 +34,16 @@
     "api_username": "str",
     "api_password": "password"
   },
-  "privileged": [],
+  "privileged": [
+    "NET_ADMIN"
+  ],
   "homeassistant_api": true,
+  "network_mode": "host",
   "panel_icon": "mdi:music-box-multiple",
-  "panel_title": "Alexa Skill"
+  "panel_title": "Alexa Skill",
+  "ingress": {
+    "title": "Alexa Skill Setup",
+    "icon": "mdi:music-box-multiple",
+    "panel": true
+  }
 }
