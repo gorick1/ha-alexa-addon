@@ -3,9 +3,11 @@
 Custom Flask starter script that ensures proper startup.
 Uses Waitress WSGI server for better container compatibility.
 Bypasses app-level Basic Auth for Home Assistant ingress requests.
+Rewrites absolute URL paths in HTML so they work behind HA ingress.
 """
 import os
 import sys
+import re
 import traceback
 
 # Change to the app directory first
@@ -26,29 +28,14 @@ try:
     # ---------------------------------------------------------------
     # CRITICAL FIX: Disable the app's built-in Basic Auth for ingress
     # ---------------------------------------------------------------
-    # Home Assistant ingress already authenticates users via its own
-    # session system.  The upstream app enforces HTTP Basic Auth via
-    # a @app.before_request handler named "_check_app_basic_auth" and
-    # WSGI middleware "BasicAuthMiddleware".  When accessed through
-    # ingress (source IP 172.30.32.2) there are no Basic Auth headers
-    # so the app returns 401.
-    #
-    # Strategy: replace the before_request auth check so that requests
-    # coming from the HA ingress gateway (172.30.32.2) are always
-    # allowed through without credentials.
-    # ---------------------------------------------------------------
-
-    # Remove the original _check_app_basic_auth before_request handler
-    # Flask stores before_request functions in app.before_request_funcs
     funcs = app.before_request_funcs.get(None, [])
     original_auth_funcs = [f for f in funcs if f.__name__ == '_check_app_basic_auth']
     for f in original_auth_funcs:
         funcs.remove(f)
         print(f">>> Removed original auth handler: {f.__name__}", flush=True)
 
-    # Also unwrap BasicAuthMiddleware from the WSGI stack if present
+    # Unwrap BasicAuthMiddleware from the WSGI stack if present
     wsgi = app.wsgi_app
-    # Walk the middleware chain to find and remove BasicAuthMiddleware
     if hasattr(wsgi, '__class__') and wsgi.__class__.__name__ == 'BasicAuthMiddleware':
         app.wsgi_app = wsgi.app
         print(">>> Removed BasicAuthMiddleware from main app WSGI chain", flush=True)
@@ -87,6 +74,130 @@ try:
         return None
 
     print(">>> Installed ingress-aware auth handler (172.30.32.2 bypasses Basic Auth)", flush=True)
+
+    # ---------------------------------------------------------------
+    # INGRESS PATH REWRITING MIDDLEWARE
+    # ---------------------------------------------------------------
+    # HA ingress serves the add-on under /api/hassio_ingress/<token>/
+    # The upstream templates use absolute paths like /setup/start which
+    # would be sent to the HA root and 404.  This middleware detects
+    # the X-Ingress-Path header that HA sends and rewrites absolute
+    # URL references in HTML responses so they work correctly.
+    # ---------------------------------------------------------------
+
+    class IngressPathRewriteMiddleware:
+        """WSGI middleware that rewrites absolute URL paths in HTML responses
+        to be prefixed with the HA ingress base path."""
+
+        # Paths used by the upstream app that need rewriting
+        PATHS_TO_REWRITE = [
+            '/setup/start',
+            '/setup/stop',
+            '/setup/code',
+            '/setup/logs/download',
+            '/setup',
+            '/status',
+        ]
+
+        def __init__(self, wsgi_app):
+            self.wsgi_app = wsgi_app
+
+        def __call__(self, environ, start_response):
+            ingress_path = environ.get('HTTP_X_INGRESS_PATH', '')
+
+            if not ingress_path:
+                # Not coming through ingress - pass through unchanged
+                return self.wsgi_app(environ, start_response)
+
+            # Strip trailing slash from ingress path
+            ingress_path = ingress_path.rstrip('/')
+
+            # Collect the response
+            response_started = []
+            response_headers = []
+            write_func = [None]
+
+            def custom_start_response(status, headers, exc_info=None):
+                response_started.append(status)
+                response_headers.append(headers)
+                # Check content type
+                content_type = ''
+                for name, value in headers:
+                    if name.lower() == 'content-type':
+                        content_type = value
+                        break
+
+                if 'text/html' in content_type:
+                    # We need to buffer this response to rewrite paths
+                    # Return a dummy write function (buffering mode)
+                    def dummy_write(data):
+                        pass
+                    write_func[0] = dummy_write
+                    return dummy_write
+                else:
+                    # Not HTML - pass through
+                    write_func[0] = start_response(status, headers, exc_info)
+                    return write_func[0]
+
+            result = self.wsgi_app(environ, custom_start_response)
+
+            status = response_started[0] if response_started else '500 Internal Server Error'
+            headers = response_headers[0] if response_headers else []
+
+            # Check if this is an HTML response that needs rewriting
+            content_type = ''
+            for name, value in headers:
+                if name.lower() == 'content-type':
+                    content_type = value
+                    break
+
+            if 'text/html' not in content_type:
+                # Non-HTML: already started the real response, just return body
+                return result
+
+            # Buffer the full HTML body
+            body_parts = []
+            try:
+                for chunk in result:
+                    body_parts.append(chunk)
+            finally:
+                if hasattr(result, 'close'):
+                    result.close()
+
+            body = b''.join(body_parts)
+
+            try:
+                html = body.decode('utf-8')
+            except UnicodeDecodeError:
+                html = body.decode('latin-1')
+
+            # Rewrite absolute paths in the HTML
+            # Sort paths longest first so /setup/start matches before /setup
+            sorted_paths = sorted(self.PATHS_TO_REWRITE, key=len, reverse=True)
+            for path in sorted_paths:
+                # Replace in fetch() calls: fetch('/setup/start' -> fetch('/ingress_path/setup/start'
+                # Replace in window.location assignments: = '/status' -> = '/ingress_path/status'
+                # Replace in href attributes: href="/status" -> href="/ingress_path/status"
+                # But only if not already prefixed
+                html = html.replace(f"'{path}", f"'{ingress_path}{path}")
+                html = html.replace(f'"{path}', f'"{ingress_path}{path}')
+
+            new_body = html.encode('utf-8')
+
+            # Update Content-Length header
+            new_headers = []
+            for name, value in headers:
+                if name.lower() == 'content-length':
+                    new_headers.append((name, str(len(new_body))))
+                else:
+                    new_headers.append((name, value))
+
+            start_response(status, new_headers)
+            return [new_body]
+
+    # Wrap the Flask WSGI app with our ingress path rewriting middleware
+    app.wsgi_app = IngressPathRewriteMiddleware(app.wsgi_app)
+    print(">>> Installed IngressPathRewriteMiddleware for HA ingress URL rewriting", flush=True)
 
     # Add request/response logging
     @app.after_request
