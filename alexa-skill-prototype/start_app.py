@@ -38,14 +38,20 @@ try:
         sys.stdout.flush()
         return response
     
-    @app.errorhandler(Exception)
-    def handle_error(error):
+    # Add a simple health check route that always responds
+    @app.route('/health', methods=['GET'])
+    def health():
         import sys
-        import traceback
-        print(f">>> ERROR: {error}", flush=True)
-        traceback.print_exc()
+        print(f">>> HEALTH CHECK HIT", flush=True)
         sys.stdout.flush()
-        return {"error": str(error)}, 500
+        return {"status": "ok"}, 200
+    
+    @app.route('/', methods=['GET'])
+    def root():
+        import sys
+        print(f">>> ROOT PATH HIT", flush=True)
+        sys.stdout.flush()
+        return {"message": "Music Assistant Alexa Skill is running"}, 200
         
 except Exception as e:
     print(f"ERROR importing app: {e}", flush=True)
@@ -64,6 +70,8 @@ if __name__ == '__main__':
         from waitress import serve
         print(">>> Using Waitress WSGI server", flush=True)
         print(f">>> Serving on http://{host}:{port}", flush=True)
+        print(f">>> This add-on is ready for Home Assistant ingress requests", flush=True)
+        print(f">>> Test with: curl http://{host}:{port}/health", flush=True)
         sys.stdout.flush()
         
         # Serve with explicit error handling
