@@ -13,34 +13,46 @@ else
   API_PASSWORD=""
 fi
 
-# Write secrets to files for the app
-echo "$API_USERNAME" > /run/secrets/APP_USERNAME
-echo "$API_PASSWORD" > /run/secrets/APP_PASSWORD
-chmod 600 /run/secrets/*
-
-# Set environment variables
+# Set environment variables from config or defaults
 export SKILL_HOSTNAME="${SKILL_HOSTNAME:-home.garrettorick.com}"
 export MA_HOSTNAME="${MA_HOSTNAME:-127.0.0.1:8097}"
-export APP_USERNAME="/run/secrets/APP_USERNAME"
-export APP_PASSWORD="/run/secrets/APP_PASSWORD"
 export PORT="${PORT:-5000}"
-export DEBUG_PORT="${DEBUG_PORT:-5678}"
+export DEBUG_PORT="${DEBUG_PORT:-0}"
 export LOCALE="${LOCALE:-en-US}"
 export AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-us-east-1}"
 export TZ="${TZ:-America/Chicago}"
+export QUIET_HTTP="${QUIET_HTTP:-1}"
+
+# Export basic auth credentials if provided
+if [ -n "$API_USERNAME" ]; then
+  export APP_USERNAME="$API_USERNAME"
+fi
+if [ -n "$API_PASSWORD" ]; then
+  export APP_PASSWORD="$API_PASSWORD"
+fi
 
 # Log startup info
 echo "==================================================="
-echo "Music Assistant Alexa Skill Prototype"
+echo "Music Assistant Alexa Skill"
 echo "==================================================="
 echo "Skill Hostname: $SKILL_HOSTNAME"
 echo "Music Assistant: $MA_HOSTNAME"
-echo "API Username: $API_USERNAME"
+echo "API Username: ${API_USERNAME:-none}"
 echo "Port: $PORT"
 echo "Locale: $LOCALE"
+echo "Region: $AWS_DEFAULT_REGION"
 echo "==================================================="
 echo ""
 
-# Start the application
-cd /app
-python main.py
+# Change to app directory and start
+cd /opt/music-assistant
+
+# Start with conditional debugging support
+if [ -n "${DEBUG_PORT}" ] && [ "${DEBUG_PORT}" != "0" ]; then
+  echo "Starting with debugpy on port ${DEBUG_PORT}..."
+  pip install --no-cache-dir debugpy
+  python -m debugpy --listen 0.0.0.0:${DEBUG_PORT} app/app.py
+else
+  echo "Starting Music Assistant Alexa Skill..."
+  python app/app.py
+fi
