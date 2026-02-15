@@ -53,12 +53,22 @@ if ! command -v python3 &> /dev/null; then
   exit 1
 fi
 
+# Verify the app.py exists
+if [ ! -f "app/app.py" ]; then
+  echo "ERROR: app/app.py not found in /opt/music-assistant"
+  ls -la .
+  exit 1
+fi
+
+echo "App directory contents:"
+ls -la app/ | head -10
+
 # Start with conditional debugging support
 if [ -n "${DEBUG_PORT}" ] && [ "${DEBUG_PORT}" != "0" ]; then
   echo "Starting with debugpy on port ${DEBUG_PORT}..."
-  python3 -m pip install --no-cache-dir debugpy
-  python3 -m debugpy --listen 0.0.0.0:${DEBUG_PORT} app/app.py
+  python3 -m pip install --no-cache-dir debugpy 2>&1 | tail -3
+  exec python3 -m debugpy --listen 0.0.0.0:${DEBUG_PORT} app/app.py
 else
   echo "Starting Music Assistant Alexa Skill..."
-  python3 app/app.py
+  exec python3 app/app.py
 fi
