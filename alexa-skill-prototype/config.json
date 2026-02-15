@@ -1,0 +1,41 @@
+{
+  "name": "Music Assistant Alexa Skill",
+  "version": "1.0.0",
+  "slug": "alexa-skill",
+  "description": "Alexa skill prototype for Music Assistant - enables Music Assistant playback on Alexa devices",
+  "url": "https://github.com/alams154/music-assistant-alexa-skill-prototype",
+  "startup": "before",
+  "boot": "auto",
+  "arch": [
+    "amd64",
+    "armv7",
+    "aarch64"
+  ],
+  "ports": {
+    "5000/tcp": 5000,
+    "5678/tcp": 5678
+  },
+  "ports_description": {
+    "5000/tcp": "Web UI and API port",
+    "5678/tcp": "Debug port (optional)"
+  },
+  "environment": {
+    "SKILL_HOSTNAME": "home.garrettorick.com",
+    "MA_HOSTNAME": "127.0.0.1:8097",
+    "LOCALE": "en-US",
+    "AWS_DEFAULT_REGION": "us-east-1",
+    "TZ": "America/Chicago"
+  },
+  "options": {
+    "api_username": "musicassistant",
+    "api_password": "dihJLjKN4OkWQkL0mcFGzrOxnvZKsOaFOtsIXqkaBmk="
+  },
+  "schema": {
+    "api_username": "str",
+    "api_password": "password"
+  },
+  "privileged": [],
+  "homeassistant_api": true,
+  "panel_icon": "mdi:music-box-multiple",
+  "panel_title": "Alexa Skill"
+}
