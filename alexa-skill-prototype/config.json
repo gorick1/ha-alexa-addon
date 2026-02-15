@@ -1,6 +1,6 @@
 {
   "name": "Music Assistant Alexa Skill",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "slug": "alexa-skill",
   "description": "Alexa skill prototype for Music Assistant - enables Music Assistant playback on Alexa devices",
   "url": "https://github.com/alams154/music-assistant-alexa-skill-prototype",
