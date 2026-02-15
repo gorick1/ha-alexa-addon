@@ -43,6 +43,7 @@
     "title": "Alexa Skill Setup",
     "icon": "mdi:music-box-multiple",
     "panel": true,
-    "port": 5000
+    "port": 5000,
+    "protocol": "http"
   }
 }

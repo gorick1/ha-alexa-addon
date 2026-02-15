@@ -86,5 +86,6 @@ else
   echo "Flask will print more details below:"
   echo "---"
   # Run with unbuffered output using the custom starter script
+  # Keep the process running and capture any errors
   exec python3 -u /opt/music-assistant/bin/start_app.py 2>&1
 fi
