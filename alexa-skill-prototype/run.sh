@@ -60,8 +60,11 @@ if [ ! -f "app/app.py" ]; then
   exit 1
 fi
 
-echo "App directory contents:"
-ls -la app/ | head -10
+echo "Starting app from: $(pwd)"
+echo "Python version: $(python3 --version)"
+echo "Available files:"
+ls -la app/ | head -15
+echo ""
 
 # Start with conditional debugging support
 if [ -n "${DEBUG_PORT}" ] && [ "${DEBUG_PORT}" != "0" ]; then
@@ -69,6 +72,8 @@ if [ -n "${DEBUG_PORT}" ] && [ "${DEBUG_PORT}" != "0" ]; then
   python3 -m pip install --no-cache-dir debugpy 2>&1 | tail -3
   exec python3 -m debugpy --listen 0.0.0.0:${DEBUG_PORT} app/app.py
 else
-  echo "Starting Music Assistant Alexa Skill..."
+  echo "Starting Music Assistant Alexa Skill on port $PORT..."
+  echo "Listening on: 0.0.0.0:$PORT"
+  echo "---"
   exec python3 app/app.py
 fi
