@@ -66,6 +66,15 @@ echo "Available files:"
 ls -la app/ | head -15
 echo ""
 
+# Try importing the app to see if there are import errors
+echo "Testing app imports..."
+python3 -c "import sys; sys.path.insert(0, 'app'); from app import app; print('✓ App imported successfully')" 2>&1
+if [ $? -ne 0 ]; then
+  echo "ERROR: Failed to import app"
+  exit 1
+fi
+echo ""
+
 # Start with conditional debugging support
 if [ -n "${DEBUG_PORT}" ] && [ "${DEBUG_PORT}" != "0" ]; then
   echo "Starting with debugpy on port ${DEBUG_PORT}..."
@@ -74,7 +83,15 @@ if [ -n "${DEBUG_PORT}" ] && [ "${DEBUG_PORT}" != "0" ]; then
 else
   echo "Starting Music Assistant Alexa Skill on port $PORT..."
   echo "Listening on: 0.0.0.0:$PORT"
+  echo "Flask will print more details below:"
   echo "---"
-  # Run with unbuffered output and explicit error handling
-  exec python3 -u app/app.py 2>&1
+  # Run with unbuffered output, explicit error handling, and timeout
+  # Use stdbuf to ensure line buffering and timeout to catch hangs
+  exec timeout 60 python3 -u app/app.py 2>&1 || {
+    EXIT_CODE=$?
+    if [ $EXIT_CODE -eq 124 ]; then
+      echo "ERROR: Flask startup timed out after 60 seconds"
+    fi
+    exit $EXIT_CODE
+  }
 fi
