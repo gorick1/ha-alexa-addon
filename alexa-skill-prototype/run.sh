@@ -75,5 +75,6 @@ else
   echo "Starting Music Assistant Alexa Skill on port $PORT..."
   echo "Listening on: 0.0.0.0:$PORT"
   echo "---"
-  exec python3 app/app.py
+  # Run with unbuffered output and explicit error handling
+  exec python3 -u app/app.py 2>&1
 fi

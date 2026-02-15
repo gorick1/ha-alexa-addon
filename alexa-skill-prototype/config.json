@@ -21,10 +21,11 @@
   },
   "environment": {
     "SKILL_HOSTNAME": "home.garrettorick.com",
-    "MA_HOSTNAME": "127.0.0.1:8097",
+    "MA_HOSTNAME": "localhost:8097",
     "LOCALE": "en-US",
     "AWS_DEFAULT_REGION": "us-east-1",
-    "TZ": "America/Chicago"
+    "TZ": "America/Chicago",
+    "PYTHONUNBUFFERED": "1"
   },
   "options": {
     "api_username": "musicassistant",
