@@ -41,6 +41,7 @@
   "ingress": {
     "title": "Alexa Skill Setup",
     "icon": "mdi:music-box-multiple",
-    "panel": true
+    "panel": true,
+    "port": 5000
   }
 }
