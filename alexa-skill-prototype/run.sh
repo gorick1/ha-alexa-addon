@@ -4,9 +4,14 @@ set -e
 # Get options from HA add-on configuration
 CONFIG_PATH=/data/options.json
 
-# Extract credentials from config
-API_USERNAME=$(jq -r '.api_username // "musicassistant"' "$CONFIG_PATH")
-API_PASSWORD=$(jq -r '.api_password // ""' "$CONFIG_PATH")
+# Extract credentials from config (with fallback)
+if [ -f "$CONFIG_PATH" ]; then
+  API_USERNAME=$(jq -r '.api_username // "musicassistant"' "$CONFIG_PATH" 2>/dev/null || echo "musicassistant")
+  API_PASSWORD=$(jq -r '.api_password // ""' "$CONFIG_PATH" 2>/dev/null || echo "")
+else
+  API_USERNAME="musicassistant"
+  API_PASSWORD=""
+fi
 
 # Write secrets to files for the app
 echo "$API_USERNAME" > /run/secrets/APP_USERNAME
