@@ -47,12 +47,18 @@ echo ""
 # Change to app directory and start
 cd /opt/music-assistant
 
+# Ensure python is available
+if ! command -v python3 &> /dev/null; then
+  echo "ERROR: python3 not found!"
+  exit 1
+fi
+
 # Start with conditional debugging support
 if [ -n "${DEBUG_PORT}" ] && [ "${DEBUG_PORT}" != "0" ]; then
   echo "Starting with debugpy on port ${DEBUG_PORT}..."
-  pip install --no-cache-dir debugpy
-  python -m debugpy --listen 0.0.0.0:${DEBUG_PORT} app/app.py
+  python3 -m pip install --no-cache-dir debugpy
+  python3 -m debugpy --listen 0.0.0.0:${DEBUG_PORT} app/app.py
 else
   echo "Starting Music Assistant Alexa Skill..."
-  python app/app.py
+  python3 app/app.py
 fi

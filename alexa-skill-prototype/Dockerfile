@@ -8,6 +8,8 @@ WORKDIR /opt/music-assistant
 # Install system dependencies (including git to clone the repo)
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
+       python3 \
+       python3-pip \
        build-essential \
        libffi-dev \
        libssl-dev \
@@ -25,6 +27,9 @@ RUN git clone https://github.com/alams154/music-assistant-alexa-skill-prototype.
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r /opt/music-assistant/app/requirements.txt
+
+# Create symlinks to ensure python command works
+RUN ln -sf /usr/bin/python3 /usr/bin/python
 
 # Create secrets directory for Home Assistant configuration
 RUN mkdir -p /run/secrets
