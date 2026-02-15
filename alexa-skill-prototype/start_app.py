@@ -21,6 +21,32 @@ try:
     # Import the app
     from app import app
     print("✓ App imported successfully", flush=True)
+    
+    # Add request logging middleware
+    @app.before_request
+    def log_request():
+        import sys
+        from flask import request
+        print(f">>> REQUEST: {request.method} {request.path} from {request.remote_addr}", flush=True)
+        sys.stdout.flush()
+    
+    @app.after_request
+    def log_response(response):
+        import sys
+        from flask import request
+        print(f">>> RESPONSE: {request.method} {request.path} -> {response.status_code}", flush=True)
+        sys.stdout.flush()
+        return response
+    
+    @app.errorhandler(Exception)
+    def handle_error(error):
+        import sys
+        import traceback
+        print(f">>> ERROR: {error}", flush=True)
+        traceback.print_exc()
+        sys.stdout.flush()
+        return {"error": str(error)}, 500
+        
 except Exception as e:
     print(f"ERROR importing app: {e}", flush=True)
     traceback.print_exc()
