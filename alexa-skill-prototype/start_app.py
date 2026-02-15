@@ -5,6 +5,7 @@ Uses Waitress WSGI server for better container compatibility.
 """
 import os
 import sys
+import traceback
 
 # Change to the app directory first
 os.chdir('/opt/music-assistant/app')
@@ -16,31 +17,48 @@ sys.path.insert(0, '/opt/music-assistant')
 # Set up environment
 os.environ.setdefault('PYTHONUNBUFFERED', '1')
 
-# Import the app
-from app import app
+try:
+    # Import the app
+    from app import app
+    print("✓ App imported successfully", flush=True)
+except Exception as e:
+    print(f"ERROR importing app: {e}", flush=True)
+    traceback.print_exc()
+    sys.exit(1)
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     host = '0.0.0.0'
     
-    print(f">>> Starting Flask app with Waitress WSGI server")
-    print(f">>> Listening on {host}:{port}")
-    sys.stdout.flush()
+    print(f">>> Starting Flask app with Waitress WSGI server", flush=True)
+    print(f">>> Listening on {host}:{port}", flush=True)
     
     try:
         # Try to import and use Waitress (better for containers)
         from waitress import serve
-        print(">>> Using Waitress WSGI server")
+        print(">>> Using Waitress WSGI server", flush=True)
+        print(f">>> Serving on http://{host}:{port}", flush=True)
         sys.stdout.flush()
-        serve(app, host=host, port=port, threads=4)
+        
+        # Serve with explicit error handling
+        serve(app, host=host, port=port, threads=4, _quiet=False)
     except ImportError:
-        print(">>> Waitress not available, falling back to Flask development server")
+        print(">>> Waitress not available, falling back to Flask development server", flush=True)
         sys.stdout.flush()
-        # Fallback to Flask if Waitress isn't installed
-        app.run(
-            host=host,
-            port=port,
-            debug=False,
-            threaded=True,
-            use_reloader=False
-        )
+        try:
+            # Fallback to Flask if Waitress isn't installed
+            app.run(
+                host=host,
+                port=port,
+                debug=False,
+                threaded=True,
+                use_reloader=False
+            )
+        except Exception as e:
+            print(f"ERROR: Flask startup failed: {e}", flush=True)
+            traceback.print_exc()
+            sys.exit(1)
+    except Exception as e:
+        print(f"ERROR: Waitress startup failed: {e}", flush=True)
+        traceback.print_exc()
+        sys.exit(1)
